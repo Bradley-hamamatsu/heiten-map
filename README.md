@@ -3,3 +3,5 @@
 浜松市の閉店・旧店舗を記録する地図サイトです。
 
 公開ページ: https://bradley-hamamatsu.github.io/heiten-map/
+
+最終更新: 2026年8月27日
