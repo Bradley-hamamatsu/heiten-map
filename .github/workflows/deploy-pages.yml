@@ -23,6 +23,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+      - name: Apply map data and UI patches
+        run: python3 scripts/patch_bundle.py
       - name: Configure Pages
         uses: actions/configure-pages@v5
         with:
