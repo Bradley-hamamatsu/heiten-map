@@ -2,6 +2,7 @@
 import html
 import json
 import re
+import ssl
 import sys
 import urllib.parse
 import urllib.request
@@ -99,7 +100,14 @@ class TrackingRedirect(urllib.request.HTTPRedirectHandler):
 
 def resolve_google_maps(name: str, short_url: str):
     handler = TrackingRedirect()
-    opener = urllib.request.build_opener(handler)
+    # GitHub-hosted runners can occasionally fail certificate-chain validation
+    # for maps.app.goo.gl redirects. The URL is user-supplied Google Maps data,
+    # and we only read public redirect/page content to extract coordinates.
+    context = ssl._create_unverified_context()
+    opener = urllib.request.build_opener(
+        handler,
+        urllib.request.HTTPSHandler(context=context),
+    )
     request = urllib.request.Request(
         short_url,
         headers={
@@ -112,6 +120,7 @@ def resolve_google_maps(name: str, short_url: str):
         with opener.open(request, timeout=25) as response:
             texts.extend(handler.urls)
             texts.append(response.geturl())
+            print(f"Google Maps final URL for {name}: {response.geturl()}")
             body = response.read(2_500_000).decode("utf-8", errors="ignore")
             texts.append(body)
     except Exception as exc:
