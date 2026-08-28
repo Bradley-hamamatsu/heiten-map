@@ -28,7 +28,7 @@ KNOWN_ADDRESSES = {
     "天神屋 浜松工房売店": "静岡県浜松市中央区将監町44-8",
 }
 
-# Used only if a Google short URL is temporarily unavailable during deploy.
+# Used only if both the Google link and address geocoding are temporarily unavailable.
 FALLBACK_COORDS = {
     "本のドリーム 丸塚バイパス店": (34.722213, 137.751293),
     "サンキューマート": (34.739946, 137.762690),
@@ -53,6 +53,8 @@ CATEGORY_UPDATES = {
     "ワイルドボア": "vehicle",
     "ウエストワールド": "business",
 }
+
+SSL_CONTEXT = ssl._create_unverified_context()
 
 
 def asset_paths():
@@ -88,6 +90,53 @@ def _extract_coords(text: str):
     return None
 
 
+def _query_from_google_url(url: str):
+    try:
+        parsed = urllib.parse.urlparse(url)
+        query = urllib.parse.parse_qs(parsed.query)
+        for key in ("q", "query"):
+            values = query.get(key)
+            if values and values[0].strip():
+                return values[0].strip()
+    except Exception:
+        pass
+    return ""
+
+
+def _address_from_query(query: str, name: str):
+    if not query:
+        return ""
+    value = html.unescape(urllib.parse.unquote(query)).strip()
+    value = re.sub(r'^〒\s*\d{3}-?\d{4}\s*', '', value)
+    # Google place links usually encode “address + place name”. Remove the
+    # trailing place name so the address can be geocoded and shown cleanly.
+    idx = value.find(name)
+    if idx > 0:
+        value = value[:idx]
+    return value.strip(" ,　")
+
+
+def _geocode_gsi(query: str):
+    if not query:
+        return None
+    url = "https://msearch.gsi.go.jp/address-search/AddressSearch?" + urllib.parse.urlencode({"q": query})
+    request = urllib.request.Request(
+        url,
+        headers={"User-Agent": "heiten-map-deploy/1.0"},
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=20, context=SSL_CONTEXT) as response:
+            data = json.loads(response.read().decode("utf-8", errors="ignore"))
+        if data:
+            lng, lat = data[0]["geometry"]["coordinates"]
+            lat, lng = float(lat), float(lng)
+            if 33.5 <= lat <= 35.5 and 136.5 <= lng <= 139.0:
+                return lat, lng
+    except Exception as exc:
+        print(f"WARN: GSI address geocoding failed for {query}: {exc}")
+    return None
+
+
 class TrackingRedirect(urllib.request.HTTPRedirectHandler):
     def __init__(self):
         super().__init__()
@@ -100,13 +149,9 @@ class TrackingRedirect(urllib.request.HTTPRedirectHandler):
 
 def resolve_google_maps(name: str, short_url: str):
     handler = TrackingRedirect()
-    # GitHub-hosted runners can occasionally fail certificate-chain validation
-    # for maps.app.goo.gl redirects. The URL is user-supplied Google Maps data,
-    # and we only read public redirect/page content to extract coordinates.
-    context = ssl._create_unverified_context()
     opener = urllib.request.build_opener(
         handler,
-        urllib.request.HTTPSHandler(context=context),
+        urllib.request.HTTPSHandler(context=SSL_CONTEXT),
     )
     request = urllib.request.Request(
         short_url,
@@ -116,11 +161,13 @@ def resolve_google_maps(name: str, short_url: str):
         },
     )
     texts = [short_url]
+    final_url = ""
     try:
         with opener.open(request, timeout=25) as response:
             texts.extend(handler.urls)
-            texts.append(response.geturl())
-            print(f"Google Maps final URL for {name}: {response.geturl()}")
+            final_url = response.geturl()
+            texts.append(final_url)
+            print(f"Google Maps final URL for {name}: {final_url}")
             body = response.read(2_500_000).decode("utf-8", errors="ignore")
             texts.append(body)
     except Exception as exc:
@@ -129,7 +176,29 @@ def resolve_google_maps(name: str, short_url: str):
     for text in texts:
         coords = _extract_coords(text)
         if coords:
-            print(f"Resolved {name}: {coords[0]:.7f}, {coords[1]:.7f}")
+            print(f"Resolved {name} from Google link: {coords[0]:.7f}, {coords[1]:.7f}")
+            return coords
+
+    google_query = _query_from_google_url(final_url)
+    derived_address = _address_from_query(google_query, name)
+    if derived_address and name not in KNOWN_ADDRESSES:
+        KNOWN_ADDRESSES[name] = derived_address
+        print(f"Derived address for {name}: {derived_address}")
+
+    geocode_candidates = [
+        KNOWN_ADDRESSES.get(name, ""),
+        derived_address,
+        google_query,
+    ]
+    seen = set()
+    for candidate in geocode_candidates:
+        candidate = candidate.strip() if candidate else ""
+        if not candidate or candidate in seen:
+            continue
+        seen.add(candidate)
+        coords = _geocode_gsi(candidate)
+        if coords:
+            print(f"Resolved {name} from address: {coords[0]:.7f}, {coords[1]:.7f}")
             return coords
 
     fallback = FALLBACK_COORDS.get(name)
@@ -153,7 +222,6 @@ def read_places(js_text: str):
     try:
         places = json.loads(raw)
     except json.JSONDecodeError:
-        # JS template-literal escaping, if present, is not part of JSON itself.
         raw_for_json = raw.replace(r'\`', '`').replace(r'\${', '${')
         places = json.loads(raw_for_json)
     return places, start, end
@@ -164,7 +232,6 @@ def update_places(places):
     for place in places:
         by_name.setdefault(place.get("name", ""), []).append(place)
 
-    # Rename the existing Koike branch.
     dream = by_name.get("本のドリーム", [])
     if not dream:
         dream = by_name.get("本のドリーム 小池店", [])
@@ -174,7 +241,6 @@ def update_places(places):
         place["name"] = "本のドリーム 小池店"
     print(f"Renamed 本のドリーム -> 本のドリーム 小池店 ({len(dream)} entry)")
 
-    # Explicit category corrections from the user.
     hit_names = set()
     for place in places:
         name = place.get("name", "")
@@ -221,7 +287,6 @@ def patch_js(js_path: Path):
     before_count = len(places)
     update_places(places)
     serialized = json.dumps(places, ensure_ascii=False, separators=(",", ":"))
-    # Keep the JSON safe inside a JavaScript template literal.
     serialized = serialized.replace("`", r"\`").replace("${", r"\${")
     patched = text[:start] + serialized + text[end:]
     js_path.write_text(patched, encoding="utf-8")
