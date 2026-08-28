@@ -31,6 +31,7 @@ KNOWN_ADDRESSES = {
 # Used only if both the Google link and address geocoding are temporarily unavailable.
 FALLBACK_COORDS = {
     "本のドリーム 丸塚バイパス店": (34.722213, 137.751293),
+    "ロイヤルホスト": (34.7240049, 137.7766694),
     "サンキューマート": (34.739946, 137.762690),
     "赤帽": (34.691933, 137.772798),
     "天神屋 浜松工房売店": (34.7137073, 137.7565453),
@@ -77,12 +78,12 @@ def _extract_coords(text: str):
     patterns = [
         r'!3d(-?\d{1,3}\.\d+)!4d(-?\d{1,3}\.\d+)',
         r'@(-?\d{1,3}\.\d+),(-?\d{1,3}\.\d+)',
-        r'[?&](?:query|q|ll|center)=(-?\d{1,3}\.\d+)%?2C(-?\d{1,3}\.\d+)',
+        r'[?&](?:query|q|ll|center)=(-?\d{1,3}\.\d+)(?:,|%2C)(-?\d{1,3}\.\d+)',
         r'"latitude"\s*:\s*(-?\d{1,3}\.\d+).*?"longitude"\s*:\s*(-?\d{1,3}\.\d+)',
     ]
     for candidate in candidates:
         for pattern in patterns:
-            m = re.search(pattern, candidate, re.S)
+            m = re.search(pattern, candidate, re.S | re.I)
             if m:
                 lat, lng = float(m.group(1)), float(m.group(2))
                 if 33.5 <= lat <= 35.5 and 136.5 <= lng <= 139.0:
@@ -108,11 +109,12 @@ def _address_from_query(query: str, name: str):
         return ""
     value = html.unescape(urllib.parse.unquote(query)).strip()
     value = re.sub(r'^〒\s*\d{3}-?\d{4}\s*', '', value)
-    # Google place links usually encode “address + place name”. Remove the
-    # trailing place name so the address can be geocoded and shown cleanly.
     idx = value.find(name)
     if idx > 0:
         value = value[:idx]
+    # A coordinate-only Maps link is a location, not an address string.
+    if re.fullmatch(r'-?\d{1,3}\.\d+\s*,\s*-?\d{1,3}\.\d+', value):
+        return ""
     return value.strip(" ,　")
 
 
@@ -120,10 +122,7 @@ def _geocode_gsi(query: str):
     if not query:
         return None
     url = "https://msearch.gsi.go.jp/address-search/AddressSearch?" + urllib.parse.urlencode({"q": query})
-    request = urllib.request.Request(
-        url,
-        headers={"User-Agent": "heiten-map-deploy/1.0"},
-    )
+    request = urllib.request.Request(url, headers={"User-Agent": "heiten-map-deploy/1.0"})
     try:
         with urllib.request.urlopen(request, timeout=20, context=SSL_CONTEXT) as response:
             data = json.loads(response.read().decode("utf-8", errors="ignore"))
@@ -149,10 +148,7 @@ class TrackingRedirect(urllib.request.HTTPRedirectHandler):
 
 def resolve_google_maps(name: str, short_url: str):
     handler = TrackingRedirect()
-    opener = urllib.request.build_opener(
-        handler,
-        urllib.request.HTTPSHandler(context=SSL_CONTEXT),
-    )
+    opener = urllib.request.build_opener(handler, urllib.request.HTTPSHandler(context=SSL_CONTEXT))
     request = urllib.request.Request(
         short_url,
         headers={
@@ -185,11 +181,7 @@ def resolve_google_maps(name: str, short_url: str):
         KNOWN_ADDRESSES[name] = derived_address
         print(f"Derived address for {name}: {derived_address}")
 
-    geocode_candidates = [
-        KNOWN_ADDRESSES.get(name, ""),
-        derived_address,
-        google_query,
-    ]
+    geocode_candidates = [KNOWN_ADDRESSES.get(name, ""), derived_address, google_query]
     seen = set()
     for candidate in geocode_candidates:
         candidate = candidate.strip() if candidate else ""
