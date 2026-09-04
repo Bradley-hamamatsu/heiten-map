@@ -1,24 +1,579 @@
 <!doctype html>
 <html lang="ja">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="robots" content="noindex,nofollow" />
-    <meta
-      name="description"
-      content="浜松閉店マップの管理者専用ページです。"
-    />
-    <link rel="icon" href="/heiten-map/favicon.svg" />
-    <title>管理者ページ | 浜松市閉店マップ</title>
-    <script type="module" crossorigin src="/heiten-map/assets/admin-DQcMEpdi.js"></script>
-    <link rel="modulepreload" crossorigin href="/heiten-map/assets/rolldown-runtime-ciTZEWaI.js">
-    <link rel="modulepreload" crossorigin href="/heiten-map/assets/icons-CK8gvNVe.js">
-    <link rel="modulepreload" crossorigin href="/heiten-map/assets/react-C7cn2exz.js">
-    <link rel="modulepreload" crossorigin href="/heiten-map/assets/ui-BD2vJvMe.js">
-    <link rel="modulepreload" crossorigin href="/heiten-map/assets/map-experience-Ch2l2pu3.js">
-    <link rel="stylesheet" crossorigin href="/heiten-map/assets/map-experience-B04n2wOs.css">
-  </head>
-  <body>
-    <div id="root"></div>
-  </body>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="robots" content="noindex,nofollow" />
+  <meta name="description" content="浜松閉店マップの管理者専用ページです。" />
+  <title>管理者地図 | 浜松市閉店マップ</title>
+  <link rel="icon" href="/heiten-map/favicon.svg" />
+  <link rel="stylesheet" href="/heiten-map/assets/preload-helper-MbmbZ9XP.css" />
+  <style>
+    :root{font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans JP",sans-serif}
+    *{box-sizing:border-box}
+    html,body,#root{width:100%;height:100%;margin:0;overflow:hidden}
+    button,input,select,textarea{font:inherit}
+    button{cursor:pointer}
+    .hidden{display:none!important}
+    .admin-login{height:100%;display:grid;place-items:center;padding:20px;background:#f3f5f4}
+    .admin-login-card{width:min(440px,100%);background:#fff;border:1px solid #dfe5e2;border-radius:22px;padding:28px;box-shadow:0 18px 55px rgba(26,39,36,.14)}
+    .admin-login-seal{width:54px;height:54px;display:grid;place-items:center;border-radius:18px;background:#225b4e;color:#fff;font-size:24px;font-weight:900;margin-bottom:18px}
+    .admin-login-card h1{margin:0 0 6px;font-size:25px}
+    .admin-login-card p{margin:0 0 18px;color:#687471}
+    .admin-login-card label{display:grid;gap:7px;font-weight:800}
+    .admin-login-card input{width:100%;border:1px solid #cdd7d3;border-radius:11px;padding:12px 13px}
+    .admin-login-card button{width:100%;margin-top:14px;border:0;border-radius:11px;background:#225b4e;color:#fff;padding:12px 15px;font-weight:900}
+    .admin-error{color:#a52d2d!important;font-weight:800!important;margin-top:12px!important}
+
+    .admin-map-shell{position:relative;width:100%;height:100%;background:#e8ecea}
+    #map{position:absolute;inset:0;z-index:1}
+    .admin-map-shell .map-header{z-index:700}
+    .admin-map-actions{position:absolute;z-index:760;right:18px;top:18px;display:flex;gap:8px}
+    .admin-action-btn{border:1px solid rgba(209,220,216,.95);background:rgba(255,255,255,.96);color:#273330;border-radius:13px;padding:10px 14px;font-weight:900;box-shadow:0 8px 26px rgba(24,40,36,.14)}
+    .admin-action-btn.primary{background:#225b4e;color:#fff;border-color:#225b4e}
+    .admin-map-shell .record-status{z-index:650}
+    .admin-map-shell .add-store-button{z-index:720}
+    .admin-map-shell .map-toolbar{z-index:720}
+    .admin-map-shell .map-search{max-width:min(560px,calc(100vw - 380px))}
+    .admin-map-shell .search-results{max-height:340px}
+    .admin-map-shell .map-loading{z-index:620}
+    .admin-map-shell .leaflet-tooltip.admin-label{background:rgba(255,255,255,.9);border:1px solid rgba(211,220,217,.9);box-shadow:0 2px 8px rgba(0,0,0,.10);font-weight:700;color:#38433f}
+    .admin-popup h2{margin:8px 0 6px;font-size:18px}
+    .admin-popup p{margin:5px 0;color:#64706d}
+    .admin-popup .admin-popup-actions{display:flex;gap:8px;margin-top:12px}
+    .admin-popup button{flex:1;border:0;border-radius:10px;background:#225b4e;color:#fff;padding:9px 12px;font-weight:900}
+    .admin-popup a{display:grid;place-items:center;flex:1;border:1px solid #d4ddd9;border-radius:10px;background:#fff;color:#26312f;text-decoration:none;padding:9px 12px;font-weight:800}
+
+    .admin-modal-backdrop{position:fixed;inset:0;z-index:2000;background:rgba(21,28,27,.54);display:grid;place-items:center;padding:16px}
+    .admin-modal{width:min(820px,100%);max-height:94vh;overflow:auto;background:#fff;border-radius:20px;box-shadow:0 28px 90px rgba(0,0,0,.30)}
+    .admin-modal-header{position:sticky;top:0;z-index:5;background:#fff;border-bottom:1px solid #e4e9e7;padding:17px 20px;display:flex;align-items:center;gap:12px}
+    .admin-modal-header div{min-width:0}
+    .admin-modal-header small{display:block;color:#6d7875;font-weight:700;margin-bottom:3px}
+    .admin-modal-header h2{margin:0;font-size:21px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .admin-modal-header button{margin-left:auto;border:1px solid #d6dfdb;background:#fff;border-radius:10px;padding:9px 12px;font-weight:800}
+    .admin-form{padding:18px 20px 0}
+    .admin-section{border:1px solid #e1e7e4;border-radius:16px;padding:16px;margin-bottom:14px}
+    .admin-section-heading{display:flex;justify-content:space-between;gap:12px;align-items:baseline;margin-bottom:13px}
+    .admin-section-heading strong{font-size:16px}
+    .admin-section-heading span{font-size:12px;color:#75807d}
+    .admin-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+    .admin-wide{grid-column:1/-1}
+    .admin-form label{display:grid;gap:6px;font-size:13px;font-weight:800}
+    .admin-form input,.admin-form select,.admin-form textarea{width:100%;border:1px solid #ccd6d2;border-radius:10px;padding:10px 11px;background:#fff;color:#202a27}
+    .admin-form textarea{resize:vertical}
+    .admin-help{font-size:12px;color:#697572;font-weight:600}
+    .admin-location-card{border:1px solid #dce4e1;border-radius:14px;overflow:hidden;background:#f7f9f8}
+    .admin-location-toolbar{padding:11px 13px;border-bottom:1px solid #e2e8e5;display:flex;justify-content:space-between;gap:10px;align-items:center}
+    .admin-location-toolbar strong{font-size:14px}
+    .admin-location-wrap{position:relative;height:285px;background:#e8ecea}
+    #editMap{position:absolute;inset:0}
+    .admin-crosshair{position:absolute;z-index:800;left:50%;top:50%;width:42px;height:42px;transform:translate(-50%,-50%);pointer-events:none}
+    .admin-crosshair:before,.admin-crosshair:after{content:"";position:absolute;background:#c4312c;box-shadow:0 0 0 1px rgba(255,255,255,.9)}
+    .admin-crosshair:before{width:2px;height:42px;left:20px;top:0}
+    .admin-crosshair:after{height:2px;width:42px;left:0;top:20px}
+    .admin-crosshair i{position:absolute;left:16px;top:16px;width:10px;height:10px;border:2px solid #c4312c;border-radius:50%;background:#fff}
+    .admin-location-footer{padding:10px 13px;display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap}
+    .admin-location-footer small{color:#687471}
+    .admin-location-footer button{border:1px solid #d1dbd7;background:#fff;border-radius:9px;padding:8px 10px;font-weight:800}
+    .source-options{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+    .source-options label{display:flex;align-items:flex-start;gap:8px;border:1px solid #e0e6e3;border-radius:10px;padding:9px 10px;font-size:13px;font-weight:700}
+    .source-options input{width:auto;margin-top:2px}
+    .admin-form-footer{position:sticky;bottom:0;z-index:5;background:#fff;border-top:1px solid #e4e9e7;padding:13px 20px;display:flex;justify-content:flex-end;gap:9px;margin:0 -20px}
+    .admin-form-footer button{border-radius:11px;padding:10px 15px;font-weight:900}
+    .btn-secondary{border:1px solid #d3dcd8;background:#fff;color:#28332f}
+    .btn-primary{border:0;background:#225b4e;color:#fff}
+    .admin-save-error{margin:0 0 12px;color:#a42d2d;font-weight:800}
+
+    @media(max-width:760px){
+      .admin-map-actions{right:8px;top:8px}
+      .admin-action-btn{padding:9px 10px}
+      .admin-map-shell .map-search{max-width:calc(100vw - 18px)}
+      .admin-map-shell .map-header{padding-right:8px}
+      .admin-map-actions{top:auto;bottom:76px;right:8px;flex-direction:column}
+      .admin-grid{grid-template-columns:1fr}.admin-wide{grid-column:auto}
+      .source-options{grid-template-columns:1fr}
+      .admin-modal-backdrop{padding:6px}.admin-modal{max-height:97vh;border-radius:15px}
+      .admin-location-wrap{height:240px}
+    }
+  </style>
+</head>
+<body>
+<div id="root">
+  <section id="loginView" class="admin-login">
+    <form id="loginForm" class="admin-login-card">
+      <div class="admin-login-seal">管</div>
+      <h1>管理者ページ</h1>
+      <p>管理者用パスワードを入力してください。</p>
+      <label>パスワード
+        <input id="password" type="password" autocomplete="current-password" required />
+      </label>
+      <p id="loginError" class="admin-error hidden"></p>
+      <button id="loginButton" type="submit">管理者用の地図を開く</button>
+    </form>
+  </section>
+
+  <main id="mapView" class="map-shell admin-map-shell hidden">
+    <div id="map" class="map-canvas" aria-label="浜松市の管理者用地図"></div>
+    <div id="mapLoading" class="map-loading"><span>浜松市の地図を準備中…</span></div>
+
+    <header class="map-header">
+      <div class="brand-lockup">
+        <span class="brand-mark" aria-hidden="true">閉</span>
+        <div>
+          <p class="brand-kicker">浜松市の記憶を地図に残す</p>
+          <h1>浜松市閉店マップ</h1>
+        </div>
+      </div>
+      <form id="searchForm" class="map-search" role="search">
+        <input id="searchInput" type="search" autocomplete="off" placeholder="店名・住所で検索" aria-label="店名または住所で検索" />
+        <button class="search-submit-button" type="submit">検索</button>
+        <div id="searchResults" class="search-results hidden" role="listbox"></div>
+      </form>
+    </header>
+
+    <div class="admin-map-actions">
+      <button id="menuButton" class="admin-action-btn primary" type="button">管理メニュー</button>
+      <button id="logoutButton" class="admin-action-btn" type="button">ログアウト</button>
+    </div>
+
+    <div id="recordStatus" class="record-status"><span class="status-dot"></span>読み込み中…</div>
+
+    <div class="map-toolbar" aria-label="地図操作">
+      <button id="locateButton" class="map-tool-button" type="button" title="現在地" aria-label="現在地へ移動">◎</button>
+      <button id="baseButton" class="map-tool-button" type="button" title="地図切替" aria-label="地図を切り替える">地</button>
+    </div>
+
+    <button id="addButton" class="add-store-button" type="button"><span>＋</span><span>店舗を追加</span></button>
+  </main>
+</div>
+
+<div id="editBackdrop" class="admin-modal-backdrop hidden">
+  <section class="admin-modal" role="dialog" aria-modal="true" aria-labelledby="editTitle">
+    <header class="admin-modal-header">
+      <div>
+        <small>管理者専用・公開内容を直接編集</small>
+        <h2 id="editTitle">店舗情報を編集</h2>
+      </div>
+      <button id="closeEdit" type="button">閉じる</button>
+    </header>
+
+    <form id="editForm" class="admin-form">
+      <input id="storeId" type="hidden" />
+
+      <section class="admin-section">
+        <div class="admin-section-heading"><strong>店舗情報</strong><span>公開版と同じ項目</span></div>
+        <div class="admin-grid">
+          <label class="admin-wide">店名
+            <input id="name" maxlength="100" required placeholder="当時の正式な店名" />
+          </label>
+          <label>カテゴリ
+            <select id="category"></select>
+          </label>
+          <label>2つ目のカテゴリ
+            <select id="secondaryCategory"></select>
+          </label>
+          <label>状態
+            <select id="status">
+              <option value="closed">閉店</option>
+              <option value="moved">移転</option>
+              <option value="checking">確認中</option>
+            </select>
+          </label>
+          <label>住所
+            <input id="address" maxlength="160" placeholder="例：浜松市中央区○○町123" />
+          </label>
+        </div>
+      </section>
+
+      <section class="admin-section">
+        <div class="admin-section-heading"><strong>地図上の場所</strong><span>十字線の中心が保存位置になります</span></div>
+        <div class="admin-location-card">
+          <div class="admin-location-toolbar">
+            <strong>地図を動かして位置を合わせる</strong>
+            <span class="admin-help">PCはドラッグ、スマホは2本指で操作</span>
+          </div>
+          <div class="admin-location-wrap">
+            <div id="editMap"></div>
+            <div class="admin-crosshair" aria-hidden="true"><i></i></div>
+          </div>
+          <div class="admin-location-footer">
+            <small id="coordinateText">十字線の位置を読み込み中…</small>
+            <button id="resetLocation" type="button">元の位置に戻す</button>
+          </div>
+        </div>
+        <input id="lat" type="hidden" />
+        <input id="lng" type="hidden" />
+      </section>
+
+      <section class="admin-section">
+        <div class="admin-section-heading"><strong>時期・その後</strong><span>分かる範囲でOK</span></div>
+        <div class="admin-grid">
+          <label class="admin-wide">GoogleマップのURL
+            <input id="googleMapsUrl" type="url" maxlength="500" placeholder="https://maps.app.goo.gl/…" />
+          </label>
+          <label>開店年・時期
+            <input id="openedYear" maxlength="40" placeholder="例：昭和50年ごろ" />
+          </label>
+          <label>閉店・移転年・時期
+            <input id="closedYear" maxlength="40" placeholder="例：2012年ごろ" />
+          </label>
+          <label class="admin-wide">その後の店舗・用途
+            <input id="nextStore" maxlength="120" placeholder="例：○○店、住宅、駐車場" />
+          </label>
+          <label class="admin-wide">補足
+            <textarea id="note" rows="3" maxlength="500" placeholder="移転先や場所を特定するための補足など"></textarea>
+          </label>
+        </div>
+      </section>
+
+      <section class="admin-section">
+        <div class="admin-section-heading"><strong>情報源・根拠</strong><span>複数選択できます</span></div>
+        <div id="sourceOptions" class="source-options"></div>
+        <label style="margin-top:10px">その他の情報源・URL（任意）
+          <input id="sourceExtra" maxlength="500" placeholder="選択肢にない情報源やURL" />
+        </label>
+      </section>
+
+      <p id="editError" class="admin-save-error hidden"></p>
+      <div class="admin-form-footer">
+        <button id="cancelEdit" class="btn-secondary" type="button">キャンセル</button>
+        <button id="saveButton" class="btn-primary" type="submit">公開内容を保存</button>
+      </div>
+    </form>
+  </section>
+</div>
+
+<script type="module">
+const API = "https://hamamatsu-closed-map.yummy-anole-6861.chatgpt.site/api/admin";
+const KEY_NAME = "hamamatsu-closed-map-admin-key";
+const categories = {
+  food:{label:"飲食店",color:"#e77522"},
+  convenience:{label:"コンビニ",color:"#2188a6"},
+  shop:{label:"小売店・商店",color:"#357bb3"},
+  bookstore:{label:"書店",color:"#5369a8"},
+  pharmacy:{label:"薬局",color:"#2b8b72"},
+  beauty:{label:"美容院・サロン",color:"#c65387"},
+  medical:{label:"病院・医院",color:"#d14f50"},
+  pachinko:{label:"パチンコ屋",color:"#8a52a3"},
+  gas:{label:"ガソリンスタンド",color:"#376ca8"},
+  vehicle:{label:"車・バイク・自転車",color:"#2e8190"},
+  leisure:{label:"娯楽・スポーツ",color:"#3f8a57"},
+  lodging:{label:"宿泊",color:"#8260ad"},
+  business:{label:"工場・事業所・事務所",color:"#64727d"},
+  facility:{label:"施設・サービス",color:"#a15f38"},
+  other:{label:"その他・未分類",color:"#7b7166"}
+};
+const sourceChoices = [
+  "現地で確認","Googleストリートビュー","Googleマップ","航空写真・古地図",
+  "チラシ・広告","公式サイト・公式SNS","その他のウェブサイト・SNS",
+  "新聞・雑誌・書籍","自分の記憶","家族・知人から聞いた","その他"
+];
+const baseMaps = [
+  {name:"淡色地図",url:"https://cyberjapandata.gsi.go.jp/xyz/pale/{z}/{x}/{y}.png",max:18},
+  {name:"標準地図",url:"https://cyberjapandata.gsi.go.jp/xyz/std/{z}/{x}/{y}.png",max:18},
+  {name:"航空写真",url:"https://cyberjapandata.gsi.go.jp/xyz/seamlessphoto/{z}/{x}/{y}.jpg",max:18}
+];
+
+const $ = (id) => document.getElementById(id);
+const show = (el, yes) => el.classList.toggle("hidden", !yes);
+const escapeHtml = (v) => String(v ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[c]));
+const normalize = (v) => String(v || "").normalize("NFKC").toLocaleLowerCase("ja").replace(/[\s\-‐-‒–—―−ー]+/g,"");
+
+let key = "";
+let data = null;
+let L = null;
+let map = null;
+let tile = null;
+let baseIndex = 0;
+let markerLayer = null;
+let markerById = new Map();
+let editMap = null;
+let editTile = null;
+let originalLocation = null;
+
+async function apiGet(candidate){
+  const res = await fetch(API,{headers:{"X-Moderation-Key":candidate},cache:"no-store"});
+  if(!res.ok){
+    let body=null; try{body=await res.json();}catch{}
+    throw new Error(body?.error || "管理画面を読み込めませんでした");
+  }
+  return res.json();
+}
+async function apiPost(payload){
+  const res = await fetch(API,{
+    method:"POST",
+    headers:{"Content-Type":"application/json","X-Moderation-Key":key},
+    body:JSON.stringify(payload)
+  });
+  if(!res.ok){
+    let body=null; try{body=await res.json();}catch{}
+    if(res.status===403) logout();
+    throw new Error(body?.error || "操作を完了できませんでした");
+  }
+  return res.json();
+}
+function statusLabel(v){return v==="moved"?"移転":v==="checking"?"確認中":"閉店";}
+function popupHtml(store){
+  const cat=categories[store.category] || categories.other;
+  return '<article class="admin-popup">'+
+    '<div class="store-popup-labels"><span class="store-popup-category" style="--category-color:'+cat.color+'"><b>'+escapeHtml(cat.label)+'</b></span>'+
+    '<span class="store-popup-status '+escapeHtml(store.status || "closed")+'">'+escapeHtml(statusLabel(store.status))+'</span></div>'+
+    '<h2>'+escapeHtml(store.name)+'</h2>'+
+    (store.address?'<p>'+escapeHtml(store.address)+'</p>':'')+
+    (store.nextStore?'<p><b>その後：</b>'+escapeHtml(store.nextStore)+'</p>':'')+
+    '<div class="admin-popup-actions"><button type="button" data-edit-id="'+escapeHtml(store.id)+'">編集</button>'+
+    (store.googleMapsUrl?'<a href="'+escapeHtml(store.googleMapsUrl)+'" target="_blank" rel="noopener noreferrer">Googleマップ</a>':'')+
+    '</div></article>';
+}
+async function ensureLeaflet(){
+  if(L) return;
+  const mod=await import("/heiten-map/assets/leaflet-1-_l5dQP.js");
+  L=mod.t();
+}
+async function initMainMap(){
+  await ensureLeaflet();
+  if(map){setTimeout(()=>map.invalidateSize(),0);return;}
+  map=L.map("map",{zoomControl:true,attributionControl:true,minZoom:9,maxZoom:20}).setView([34.7358,137.7604],13);
+  setBaseMap(0);
+  markerLayer=L.layerGroup().addTo(map);
+  map.on("zoomend",updateLabels);
+  setTimeout(()=>{map.invalidateSize();show($("mapLoading"),false);},0);
+}
+function setBaseMap(index){
+  baseIndex=(index+baseMaps.length)%baseMaps.length;
+  const cfg=baseMaps[baseIndex];
+  if(tile) tile.remove();
+  tile=L.tileLayer(cfg.url,{maxZoom:cfg.max,maxNativeZoom:cfg.max,attribution:"地理院タイル",crossOrigin:true}).addTo(map);
+  tile.bringToBack();
+  $("baseButton").title="地図切替："+cfg.name;
+}
+function renderMarkers(){
+  if(!map||!data) return;
+  markerLayer.clearLayers();
+  markerById.clear();
+  for(const store of (data.stores||[])){
+    const lat=Number(store.lat),lng=Number(store.lng);
+    if(!Number.isFinite(lat)||!Number.isFinite(lng)) continue;
+    const cat=categories[store.category] || categories.other;
+    const marker=L.circleMarker([lat,lng],{radius:8,weight:2,color:"#fff",fillColor:cat.color,fillOpacity:.97});
+    marker.__store=store;
+    marker.bindPopup(popupHtml(store),{maxWidth:310,minWidth:220,autoPanPadding:[18,110]});
+    marker.on("popupopen",()=>{
+      const el=marker.getPopup()?.getElement();
+      const btn=el?.querySelector("[data-edit-id]");
+      if(btn) btn.onclick=()=>openEdit(store);
+    });
+    marker.addTo(markerLayer);
+    markerById.set(Number(store.id),marker);
+  }
+  updateLabels();
+}
+function updateLabels(){
+  const permanent=map && map.getZoom()>=16;
+  markerById.forEach(marker=>{
+    if(marker.getTooltip()) marker.unbindTooltip();
+    if(permanent) marker.bindTooltip(marker.__store.name,{permanent:true,direction:"top",offset:[0,-7],className:"admin-label"});
+  });
+}
+function updateStatus(){
+  const stores=data?.stores||[];
+  const closed=stores.filter(x=>x.status==="closed").length;
+  const moved=stores.filter(x=>x.status==="moved").length;
+  const checking=stores.filter(x=>x.status==="checking").length;
+  const pending=(data?.submissions||[]).filter(x=>x.state==="pending").length;
+  $("recordStatus").innerHTML='<span class="status-dot"></span>閉店 '+closed+'件・移転 '+moved+'件・確認中 '+checking+'件・承認待ち '+pending+'件';
+}
+async function login(candidate){
+  $("loginButton").disabled=true;
+  $("loginButton").textContent="確認中…";
+  show($("loginError"),false);
+  try{
+    data=await apiGet(candidate);
+    key=candidate;
+    sessionStorage.setItem(KEY_NAME,key);
+    show($("loginView"),false);
+    show($("mapView"),true);
+    await initMainMap();
+    renderMarkers();
+    updateStatus();
+  }catch(err){
+    $("loginError").textContent=err instanceof Error?err.message:"ログインできませんでした";
+    show($("loginError"),true);
+    sessionStorage.removeItem(KEY_NAME);
+  }finally{
+    $("loginButton").disabled=false;
+    $("loginButton").textContent="管理者用の地図を開く";
+  }
+}
+function logout(){
+  sessionStorage.removeItem(KEY_NAME);
+  key="";
+  data=null;
+  location.reload();
+}
+function searchStores(){
+  const q=normalize($("searchInput").value);
+  if(!q){show($("searchResults"),false);$("searchResults").innerHTML="";return;}
+  const matches=(data?.stores||[]).filter(s=>normalize(s.name+" "+(s.address||"")+" "+(categories[s.category]?.label||"")).includes(q)).slice(0,12);
+  $("searchResults").innerHTML=matches.length?matches.map(s=>
+    '<button type="button" role="option" data-search-id="'+escapeHtml(s.id)+'">'+
+    '<span><strong>'+escapeHtml(s.name)+'</strong><small>'+escapeHtml((categories[s.category]?.label||"未分類")+(s.address?"・"+s.address:""))+'</small></span></button>'
+  ).join(""):'<p class="search-result-empty">一致する店舗はありません</p>';
+  show($("searchResults"),true);
+  $("searchResults").querySelectorAll("[data-search-id]").forEach(btn=>{
+    btn.onclick=()=>{
+      const store=(data?.stores||[]).find(s=>Number(s.id)===Number(btn.dataset.searchId));
+      if(store){
+        map.setView([Number(store.lat),Number(store.lng)],Math.max(map.getZoom(),17));
+        markerById.get(Number(store.id))?.openPopup();
+        show($("searchResults"),false);
+      }
+    };
+  });
+}
+function fillCategoryOptions(){
+  const opts=Object.entries(categories).map(([k,v])=>'<option value="'+k+'">'+escapeHtml(v.label)+'</option>').join("");
+  $("category").innerHTML=opts;
+  $("secondaryCategory").innerHTML='<option value="">なし</option>'+opts;
+}
+function parseSources(source){
+  const parts=String(source||"").split(/[＋+、,]/).map(x=>x.trim()).filter(Boolean);
+  const selected=parts.filter(x=>sourceChoices.includes(x));
+  const extra=parts.filter(x=>!sourceChoices.includes(x)).join("＋");
+  return {selected:[...new Set(selected)],extra};
+}
+function renderSourceOptions(selected=[]){
+  $("sourceOptions").innerHTML=sourceChoices.map(s=>
+    '<label><input type="checkbox" name="sourceChoice" value="'+escapeHtml(s)+'" '+(selected.includes(s)?"checked":"")+'><span>'+escapeHtml(s)+'</span></label>'
+  ).join("");
+}
+async function initEditMap(lat,lng){
+  await ensureLeaflet();
+  const center=[Number(lat),Number(lng)];
+  if(editMap){
+    editMap.setView(center,17,{animate:false});
+    setTimeout(()=>editMap.invalidateSize(),0);
+    return;
+  }
+  editMap=L.map("editMap",{zoomControl:true,attributionControl:false,minZoom:9,maxZoom:20,doubleClickZoom:false}).setView(center,17);
+  editTile=L.tileLayer(baseMaps[0].url,{maxZoom:18,maxNativeZoom:18,crossOrigin:true}).addTo(editMap);
+  editMap.on("move",syncEditCoordinates);
+  editMap.on("moveend",syncEditCoordinates);
+  setTimeout(()=>editMap.invalidateSize(),0);
+}
+function syncEditCoordinates(){
+  if(!editMap) return;
+  const c=editMap.getCenter();
+  $("lat").value=c.lat.toFixed(7);
+  $("lng").value=c.lng.toFixed(7);
+  $("coordinateText").textContent="十字線の位置："+c.lat.toFixed(6)+", "+c.lng.toFixed(6);
+}
+async function openEdit(store=null){
+  fillCategoryOptions();
+  const mainCenter=map?.getCenter() || {lat:34.7358,lng:137.7604};
+  const lat=store?Number(store.lat):mainCenter.lat;
+  const lng=store?Number(store.lng):mainCenter.lng;
+  originalLocation={lat,lng};
+  $("storeId").value=store?String(store.id):"";
+  $("editTitle").textContent=store?store.name+"を編集":"店舗を追加";
+  $("name").value=store?.name||"";
+  $("category").value=store?.category||"other";
+  $("secondaryCategory").value=store?.secondaryCategory||"";
+  $("status").value=store?.status||"closed";
+  $("address").value=store?.address||"";
+  $("googleMapsUrl").value=store?.googleMapsUrl||"";
+  $("openedYear").value=store?.openedYear??"";
+  $("closedYear").value=store?.closedYear??"";
+  $("nextStore").value=store?.nextStore||"";
+  $("note").value=store?.note||"";
+  const parsed=parseSources(store?.source||"");
+  renderSourceOptions(parsed.selected);
+  $("sourceExtra").value=parsed.extra;
+  show($("editError"),false);
+  show($("editBackdrop"),true);
+  await initEditMap(lat,lng);
+  syncEditCoordinates();
+}
+function closeEdit(){show($("editBackdrop"),false);}
+async function reloadData(){
+  data=await apiGet(key);
+  renderMarkers();
+  updateStatus();
+}
+$("loginForm").addEventListener("submit",e=>{e.preventDefault();const candidate=$("password").value.trim();if(candidate)login(candidate);});
+$("searchInput").addEventListener("input",searchStores);
+$("searchInput").addEventListener("focus",searchStores);
+$("searchForm").addEventListener("submit",e=>{e.preventDefault();searchStores();$("searchInput").blur();});
+$("menuButton").onclick=()=>{location.href="./dashboard/";};
+$("logoutButton").onclick=logout;
+$("addButton").onclick=()=>openEdit(null);
+$("locateButton").onclick=()=>{
+  if(!navigator.geolocation){alert("現在地取得に対応していません");return;}
+  navigator.geolocation.getCurrentPosition(({coords})=>map?.setView([coords.latitude,coords.longitude],16),()=>alert("現在地を取得できませんでした"),{enableHighAccuracy:true,timeout:20000,maximumAge:60000});
+};
+$("baseButton").onclick=()=>setBaseMap(baseIndex+1);
+$("closeEdit").onclick=closeEdit;
+$("cancelEdit").onclick=closeEdit;
+$("editBackdrop").addEventListener("click",e=>{if(e.target===$("editBackdrop"))closeEdit();});
+$("resetLocation").onclick=()=>{
+  if(originalLocation&&editMap){editMap.setView([originalLocation.lat,originalLocation.lng],17,{animate:false});syncEditCoordinates();}
+};
+$("editForm").addEventListener("submit",async e=>{
+  e.preventDefault();
+  show($("editError"),false);
+  $("saveButton").disabled=true;
+  $("saveButton").textContent="保存中…";
+  try{
+    const chosen=[...document.querySelectorAll('input[name="sourceChoice"]:checked')].map(x=>x.value);
+    const extra=$("sourceExtra").value.trim();
+    const source=[...chosen,...(extra?[extra]:[])].join("＋");
+    const store={
+      name:$("name").value.trim(),
+      category:$("category").value,
+      secondaryCategory:$("secondaryCategory").value||null,
+      status:$("status").value,
+      address:$("address").value.trim(),
+      lat:Number($("lat").value),
+      lng:Number($("lng").value),
+      googleMapsUrl:$("googleMapsUrl").value.trim(),
+      openedYear:$("openedYear").value.trim(),
+      closedYear:$("closedYear").value.trim(),
+      nextStore:$("nextStore").value.trim(),
+      note:$("note").value.trim(),
+      source
+    };
+    if(!store.name||!Number.isFinite(store.lat)||!Number.isFinite(store.lng)) throw new Error("店名と地図上の場所は必須です");
+    const id=$("storeId").value?Number($("storeId").value):null;
+    const result=await apiPost({action:"save_store",storeId:id,store});
+    await reloadData();
+    closeEdit();
+    const savedId=Number(result?.storeId);
+    const saved=(data?.stores||[]).find(s=>Number(s.id)===(Number.isInteger(savedId)?savedId:id));
+    if(saved){
+      map.setView([Number(saved.lat),Number(saved.lng)],Math.max(map.getZoom(),17));
+      markerById.get(Number(saved.id))?.openPopup();
+    }
+  }catch(err){
+    $("editError").textContent=err instanceof Error?err.message:"保存できませんでした";
+    show($("editError"),true);
+  }finally{
+    $("saveButton").disabled=false;
+    $("saveButton").textContent="公開内容を保存";
+  }
+});
+
+window.addEventListener("error",e=>{
+  const msg=e?.message||"管理者ページの読み込み中にエラーが発生しました";
+  if(!$("mapView").classList.contains("hidden")){
+    $("recordStatus").textContent=msg;
+  }
+});
+
+const remembered=sessionStorage.getItem(KEY_NAME)||"";
+if(remembered){
+  $("password").value=remembered;
+  login(remembered);
+}
+</script>
+</body>
 </html>
