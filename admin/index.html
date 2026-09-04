@@ -108,7 +108,7 @@
         <input id="password" type="password" autocomplete="current-password" required />
       </label>
       <p id="loginError" class="admin-error hidden"></p>
-      <button id="loginButton" type="submit">管理者用の地図を開く</button>
+      <button id="loginButton" type="submit">管理メニューを開く</button>
     </form>
   </section>
 
@@ -388,21 +388,17 @@ async function login(candidate){
   $("loginButton").textContent="確認中…";
   show($("loginError"),false);
   try{
-    data=await apiGet(candidate);
+    await apiGet(candidate);
     key=candidate;
     sessionStorage.setItem(KEY_NAME,key);
-    show($("loginView"),false);
-    show($("mapView"),true);
-    await initMainMap();
-    renderMarkers();
-    updateStatus();
+    location.replace("./dashboard/");
   }catch(err){
     $("loginError").textContent=err instanceof Error?err.message:"ログインできませんでした";
     show($("loginError"),true);
     sessionStorage.removeItem(KEY_NAME);
   }finally{
     $("loginButton").disabled=false;
-    $("loginButton").textContent="管理者用の地図を開く";
+    $("loginButton").textContent="管理メニューを開く";
   }
 }
 function logout(){
