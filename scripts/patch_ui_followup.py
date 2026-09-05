@@ -9,7 +9,7 @@ from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[1]
-VERSION = "20260905-map-first-review-diff"
+VERSION = "20260905-map-first-review-diff-2"
 
 
 def replace_once(path: Path, old: str, new: str) -> None:
@@ -90,6 +90,24 @@ def upgrade_history_attribution() -> None:
             raise RuntimeError("Expected one public history prop to upgrade")
         text = text.replace(old_prop, new_prop, 1)
     bundle.write_text(text, encoding="utf-8")
+
+
+def bump_followup_cache_version() -> None:
+    """Move already-patched entrypoints to the repaired asset cache key."""
+    targets = [
+        ROOT / "index.html",
+        ROOT / "admin" / "dashboard" / "index.html",
+        ROOT / "assets" / "map-Cjgx8Hw7.js",
+        ROOT / "assets" / "admin-map-42fb4b0090.js",
+    ]
+    old_version = "20260905-map-first-review-diff"
+    for path in targets:
+        text = path.read_text(encoding="utf-8")
+        if VERSION in text:
+            continue
+        if old_version not in text:
+            raise RuntimeError(f"No follow-up cache key found in {path.relative_to(ROOT)}")
+        path.write_text(text.replace(old_version, VERSION), encoding="utf-8")
 
 
 def patch_admin_map_first_and_submission_diffs() -> None:
