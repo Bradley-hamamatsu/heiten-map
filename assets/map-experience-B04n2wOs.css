@@ -42,3 +42,11 @@
   .admin-submission-changes li>span{grid-column:1/-1}
 }
 /* END map-first-review-diff overrides 2026-09-05 */
+/* BEGIN public edge-swipe guard 2026-09-05 */
+body.public-map-page,
+body.public-map-page #root,
+body.public-map-page .map-shell{
+  overscroll-behavior-x:none;
+  overscroll-behavior-inline:none;
+}
+/* END public edge-swipe guard 2026-09-05 */
