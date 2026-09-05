@@ -108,7 +108,7 @@
         <input id="password" type="password" autocomplete="current-password" required />
       </label>
       <p id="loginError" class="admin-error hidden"></p>
-      <button id="loginButton" type="submit">管理メニューを開く</button>
+      <button id="loginButton" type="submit">管理者用の地図を開く</button>
     </form>
   </section>
 
@@ -265,8 +265,8 @@ const categories = {
 };
 const sourceChoices = [
   "現地で確認","Googleストリートビュー","Googleマップ","航空写真・古地図",
-  "チラシ・広告","公式サイト・公式SNS","その他のウェブサイト・SNS",
-  "新聞・雑誌・書籍","自分の記憶","家族・知人から聞いた","その他"
+  "チラシ・広告・看板","公式サイト・公式SNS","その他のウェブサイト・SNS",
+  "新聞・雑誌・書籍","自分の記憶","家族・知人などから聞いた","その他"
 ];
 const baseMaps = [
   {name:"淡色地図",url:"https://cyberjapandata.gsi.go.jp/xyz/pale/{z}/{x}/{y}.png",max:18},
@@ -398,7 +398,7 @@ async function login(candidate){
     sessionStorage.removeItem(KEY_NAME);
   }finally{
     $("loginButton").disabled=false;
-    $("loginButton").textContent="管理メニューを開く";
+    $("loginButton").textContent="管理者用の地図を開く";
   }
 }
 function logout(){
