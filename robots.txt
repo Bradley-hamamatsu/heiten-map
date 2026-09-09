@@ -1,0 +1,5 @@
+User-agent: *
+Allow: /heiten-map/
+Disallow: /heiten-map/admin/
+
+Sitemap: https://bradley-hamamatsu.github.io/heiten-map/sitemap.xml
