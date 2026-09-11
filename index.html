@@ -75,7 +75,8 @@
         stroke: #b72f26;
         stroke-width: 3px;
       }
-      body.public-map-page .map-shell.is-picking-location > .location-crosshair {
+      body.public-map-page .map-shell.is-picking-location > .location-crosshair,
+      body.public-map-page .public-location-picker .admin-location-crosshair {
         visibility: hidden !important;
       }
     </style>
@@ -114,22 +115,51 @@
         };
 
         const syncCrosshair = () => {
-          const isPicking = Boolean(
-            document.querySelector(".map-shell.is-picking-location > .location-crosshair")
+          const fullMapCrosshair = document.querySelector(
+            ".map-shell.is-picking-location > .location-crosshair"
           );
+          const inlineMap = document.querySelector(
+            ".public-location-picker .admin-location-map-canvas"
+          );
+          const target = inlineMap || fullMapCrosshair;
           let overlay = document.getElementById(overlayId);
-          if (isPicking && !overlay) overlay = createOverlay();
-          if (overlay) overlay.hidden = !isPicking;
+          if (target && !overlay) overlay = createOverlay();
+          if (!overlay) return;
+
+          if (!target) {
+            overlay.hidden = true;
+            return;
+          }
+
+          const rect = target.getBoundingClientRect();
+          const left = rect.left + rect.width / 2;
+          const top = rect.top + rect.height / 2;
+          const hit = document.elementFromPoint(left, top);
+          const centerIsVisible = fullMapCrosshair
+            ? true
+            : Boolean(hit && (hit === inlineMap || inlineMap.contains(hit)));
+
+          overlay.style.setProperty("left", `${left}px`, "important");
+          overlay.style.setProperty("top", `${top}px`, "important");
+          overlay.hidden = !centerIsVisible;
         };
 
-        const observer = new MutationObserver(syncCrosshair);
+        let syncFrame = 0;
+        const scheduleCrosshairSync = () => {
+          cancelAnimationFrame(syncFrame);
+          syncFrame = requestAnimationFrame(syncCrosshair);
+        };
+
+        const observer = new MutationObserver(scheduleCrosshairSync);
         observer.observe(document.getElementById("root"), {
           childList: true,
           subtree: true,
           attributes: true,
           attributeFilter: ["class"]
         });
-        syncCrosshair();
+        window.addEventListener("scroll", scheduleCrosshairSync, true);
+        window.addEventListener("resize", scheduleCrosshairSync);
+        scheduleCrosshairSync();
       })();
     </script>
   </body>
