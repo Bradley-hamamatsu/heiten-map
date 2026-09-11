@@ -35,6 +35,50 @@
     <link rel="modulepreload" crossorigin href="/heiten-map/assets/ui-BD2vJvMe.js">
     <link rel="modulepreload" crossorigin href="/heiten-map/assets/map-experience-Br6F1uL1.js">
     <link rel="stylesheet" crossorigin href="/heiten-map/assets/map-experience-BgWhvmxk.css">
+    <style>
+      /* Keep the public location crosshair above Leaflet's accelerated tile layers. */
+      #public-location-crosshair-overlay {
+        position: fixed !important;
+        z-index: 2147483647 !important;
+        top: 50% !important;
+        left: 50% !important;
+        width: 64px !important;
+        height: 64px !important;
+        pointer-events: none !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+        transform: translate3d(-50%, -50%, 0) !important;
+        -webkit-transform: translate3d(-50%, -50%, 0) !important;
+        filter: drop-shadow(0 2px 2px rgba(45, 31, 19, 0.3));
+      }
+      #public-location-crosshair-overlay[hidden] {
+        display: none !important;
+      }
+      #public-location-crosshair-overlay svg {
+        display: block !important;
+        width: 64px !important;
+        height: 64px !important;
+        overflow: visible !important;
+      }
+      #public-location-crosshair-overlay .crosshair-outline line {
+        stroke: rgba(255, 255, 255, 0.96);
+        stroke-linecap: round;
+        stroke-width: 7px;
+      }
+      #public-location-crosshair-overlay .crosshair-stroke line {
+        stroke: #b72f26;
+        stroke-linecap: round;
+        stroke-width: 3px;
+      }
+      #public-location-crosshair-overlay circle {
+        fill: #fffaf2;
+        stroke: #b72f26;
+        stroke-width: 3px;
+      }
+      body.public-map-page .map-shell.is-picking-location > .location-crosshair {
+        visibility: hidden !important;
+      }
+    </style>
   </head>
   <body class="public-map-page">
     <div id="root"></div>
@@ -44,5 +88,49 @@
         <p>浜松市で閉店・移転した店舗を、現在の地図や年代別航空写真と見比べられる地図です。表示にはJavaScriptが必要です。</p>
       </main>
     </noscript>
+    <script>
+      (() => {
+        const overlayId = "public-location-crosshair-overlay";
+
+        const createOverlay = () => {
+          const overlay = document.createElement("div");
+          overlay.id = overlayId;
+          overlay.hidden = true;
+          overlay.setAttribute("aria-hidden", "true");
+          overlay.innerHTML = `
+            <svg viewBox="0 0 64 64" focusable="false">
+              <g class="crosshair-outline">
+                <line x1="32" y1="2" x2="32" y2="62"></line>
+                <line x1="2" y1="32" x2="62" y2="32"></line>
+              </g>
+              <g class="crosshair-stroke">
+                <line x1="32" y1="2" x2="32" y2="62"></line>
+                <line x1="2" y1="32" x2="62" y2="32"></line>
+              </g>
+              <circle cx="32" cy="32" r="5"></circle>
+            </svg>`;
+          document.body.appendChild(overlay);
+          return overlay;
+        };
+
+        const syncCrosshair = () => {
+          const isPicking = Boolean(
+            document.querySelector(".map-shell.is-picking-location > .location-crosshair")
+          );
+          let overlay = document.getElementById(overlayId);
+          if (isPicking && !overlay) overlay = createOverlay();
+          if (overlay) overlay.hidden = !isPicking;
+        };
+
+        const observer = new MutationObserver(syncCrosshair);
+        observer.observe(document.getElementById("root"), {
+          childList: true,
+          subtree: true,
+          attributes: true,
+          attributeFilter: ["class"]
+        });
+        syncCrosshair();
+      })();
+    </script>
   </body>
 </html>
